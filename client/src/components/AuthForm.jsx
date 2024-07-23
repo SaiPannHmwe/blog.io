@@ -33,13 +33,10 @@ function AuthForm() {
         const userData = await response.json();
         setUserInfo(userData);
       } else {
-        // Try to parse the error response as JSON
-        let errorData;
-        errorData = JSON.parse(response);
+        let errorData = response.json();
         alert(`Register Failed: ${errorData.message || response.statusText}`);
       }
     } catch (error) {
-      // Handle network or other errors
       console.error("Error:", error);
       alert("An error occurred during registration. Please try again.");
     }
