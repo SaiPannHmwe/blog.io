@@ -1,14 +1,16 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import {
   Navigate,
   redirect,
   useNavigate,
   useSearchParams,
 } from "react-router-dom";
+import { UserContext } from "../../UserContext";
 
 function AuthForm() {
   const navigate = useNavigate();
 
+  const { setUserInfo } = useContext(UserContext);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
@@ -16,18 +18,30 @@ function AuthForm() {
   const isLoginMode = searchParam.get("mode") === "login";
 
   const login = async () => {
-    const response = await fetch(`${import.meta.env.VITE_URL}/login`, {
-      method: "POST",
-      body: JSON.stringify({ username, password }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-    });
-    if (response.ok) {
-      navigate("/");
-    } else {
-      alert("Register Failed");
+    try {
+      const response = await fetch(`${import.meta.env.VITE_URL}/login`, {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        navigate("/");
+        const userData = await response.json();
+        setUserInfo(userData);
+      } else {
+        // Try to parse the error response as JSON
+        let errorData;
+        errorData = JSON.parse(response);
+        alert(`Register Failed: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      // Handle network or other errors
+      console.error("Error:", error);
+      alert("An error occurred during registration. Please try again.");
     }
   };
 
@@ -45,13 +59,12 @@ function AuthForm() {
       alert("Register Failed");
     }
   };
+
   const formActionHandler = (e) => {
     e.preventDefault();
     if (isLoginMode) {
-      //login
       login();
     } else {
-      //register
       register();
     }
   };

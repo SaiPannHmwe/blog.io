@@ -1,42 +1,22 @@
 const express = require("express");
 const cors = require("cors");
-const mongoose = require("mongoose");
 const dotenv = require("dotenv").config();
+const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
-
 const User = require("./models/Users");
 
 const app = express();
 
-app.use(
-  cors({
-    credentials: true, // This is the key part for handling credentials
-    origin: "http://localhost:5173",
-  })
-);
+app.use(cors({ credentials: true, origin: process.env.CLIENT_URL }));
 app.use(express.json());
-app.use(cookieParser);
+app.use(cookieParser());
 
 mongoose.connect(process.env.MONGO_URL);
-const saltRounds = 10;
-const salt = bcrypt.genSaltSync(saltRounds);
-
-app.get("/profile", (req, res) => {
-  const { token } = req.cookies;
-  if (token) {
-    jwt.verify(token, process.env.JWT_KEY, {}, (err, userInfo) => {
-      if (err) throw err;
-      return res.status(200).json(userInfo);
-    });
-  } else {
-    res.status(401).json({ message: "not auth" });
-  }
-});
+const salt = bcrypt.genSaltSync(10);
 
 app.post("/register", async (req, res) => {
-  console.log(req.body);
   const { username, password } = req.body;
 
   try {
@@ -52,7 +32,6 @@ app.post("/register", async (req, res) => {
 
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
-
   const userDoc = await User.findOne({ username });
   const success = bcrypt.compareSync(password, userDoc.password);
 
@@ -63,18 +42,37 @@ app.post("/login", async (req, res) => {
       {},
       (err, token) => {
         if (err) throw err;
-
-        res.cookie("token", token).json({
-          username,
-          user_id: userDoc._id,
-        });
+        res
+          .cookie("token", token, {
+            secure: true,
+            path: "/",
+            sameSite: "none",
+          })
+          .json({
+            username,
+            user_id: userDoc._id,
+          });
       }
     );
   } else {
-    res.status(400).json("Wrong credentials");
+    res.status(400).json("Wrong user credentials");
   }
 });
-app.listen(8081);
-//, () => {
-//   console.log("Server is running on port 8081");
-// });
+
+app.get("/profile", (req, res) => {
+  const { token } = req.cookies;
+  if (token) {
+    jwt.verify(token, process.env.JWT_KEY, {}, (err, userInfo) => {
+      if (err) throw err;
+      return res.status(200).json(userInfo);
+    });
+  } else {
+    res.status(401).json({ message: "not auth" });
+  }
+});
+
+app.post("/logout", (req, res) => {
+  res.cookie("token", "").json("Logout successful");
+});
+
+app.listen(process.env.PORT);
